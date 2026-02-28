@@ -1,0 +1,61 @@
+!apt-get install -y tshark
+
+import subprocess
+
+# ==============================
+# ПУТЬ К ФАЙЛУ
+# ==============================
+pcapng_file = "dhcp.pcapng"   
+
+# ==============================
+# СПИСОК КОМАНД ДЛЯ АНАЛИЗА
+# ==============================
+commands = [
+    # DNS-запросы (топ-20)
+    f"tshark -r {pcapng_file} -Y dns -T fields -e dns.qry.name | sort | uniq -c | sort -rn | head -20",
+
+    # HTTP-запросы (первые 20)
+    f"tshark -r {pcapng_file} -Y http.request -T fields -e http.host -e http.request.uri | head -20",
+
+    # DHCP-события (тип сообщения + IP)
+    f"tshark -r {pcapng_file} -Y dhcp -T fields -e dhcp.option.dhcp -e dhcp.ip.client -e dhcp.ip.your",
+
+    # Статистика по протоколам
+    f"tshark -r {pcapng_file} -q -z io,phs"
+]
+
+# ==============================
+# ВЫПОЛНЕНИЕ КОМАНД
+# ==============================
+results = []
+
+for i, cmd in enumerate(commands, 1):
+    print(f"\n==============================")
+    print(f"ВЫПОЛНЕНИЕ КОМАНДЫ {i}")
+    print(f"{cmd}")
+    print(f"==============================\n")
+
+    process = subprocess.Popen(
+        cmd,
+        shell=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True
+    )
+
+    stdout, stderr = process.communicate()
+
+    if stdout:
+        print(stdout)
+        results.append(f"\n--- COMMAND {i} OUTPUT ---\n{stdout}")
+    if stderr:
+        print("ERROR:", stderr)
+
+# ==============================
+# СОХРАНЕНИЕ ЛОГА
+# ==============================
+with open("network_analysis_log.txt", "w") as f:
+    f.writelines(results)
+
+print("\n✅ Анализ завершён.")
+print("📁 Результаты сохранены в network_analysis_log.txt")
